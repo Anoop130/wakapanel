@@ -16,7 +16,12 @@ A minimalist GNOME Shell extension that displays your WakaTime coding statistics
 
 ## Screenshots
 
-> Add screenshots here showing the panel and menu
+### Panel View
+![Panel with WakaTime stats](screenshots/panel-view.png)
+
+### Preferences
+![Extension preferences](screenshots/preferences.png)
+
 
 ## Installation
 
