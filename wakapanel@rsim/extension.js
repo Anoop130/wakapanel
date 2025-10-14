@@ -22,32 +22,37 @@ const WakaPanelButton = GObject.registerClass(
             this._httpSession = new Soup.Session();
             this._timeoutSourceId = 0;
 
-            // Label shown on the panel
+            // icon for the panel
+            let icon = new St.Icon({
+                icon_name: 'emblem-documents-symbolic',
+                style_class: 'system-status-icon',
+            });
+            this.add_child(icon);
+
+            // label shown on panel
             this.label = new St.Label({
                 text: '--m',
                 y_align: Clutter.ActorAlign.CENTER,
+                style_class: 'wakapanel-label',
             });
             this.add_child(this.label);
 
-            // Menu items
-            this.totalItem = new PopupMenu.PopupMenuItem('');
-            this.totalItem.label.set_text('Today Total: --');
+            // menu items with icons
+            this.totalItem = new PopupMenu.PopupImageMenuItem('Today Total: --', 'appointment-soon-symbolic');
             this.menu.addMenuItem(this.totalItem);
 
-            this.projectItem = new PopupMenu.PopupMenuItem('');
-            this.projectItem.label.set_text('Top Project: --');
+            this.projectItem = new PopupMenu.PopupImageMenuItem('Top Project: --', 'folder-symbolic');
             this.menu.addMenuItem(this.projectItem);
 
-            this.languageItem = new PopupMenu.PopupMenuItem('');
-            this.languageItem.label.set_text('Top Language: --');
+            this.languageItem = new PopupMenu.PopupImageMenuItem('Top Language: --', 'utilities-terminal-symbolic');
             this.menu.addMenuItem(this.languageItem);
 
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-            this.dashboardButton = new PopupMenu.PopupMenuItem('Open WakaTime Dashboard');
+            this.dashboardButton = new PopupMenu.PopupImageMenuItem('Open WakaTime Dashboard', 'web-browser-symbolic');
             this.menu.addMenuItem(this.dashboardButton);
 
-            // Connect the activate signal to open the dashboard
+            // connect activate signal to open dashboard
             this.dashboardButton.connect('activate', () => {
                 const baseUrl = this._settings.get_string('base-url') || 'https://wakatime.com';
                 const dashboardUrl = `${baseUrl}/dashboard`;
@@ -61,7 +66,7 @@ const WakaPanelButton = GObject.registerClass(
             });
         }
 
-        // Helper to format duration text to "xh ym"
+        // helper to format duration text to "xh ym"
         _formatDuration(durationText) {
             if (!durationText) {
                 return '0m';
@@ -75,7 +80,7 @@ const WakaPanelButton = GObject.registerClass(
         }
 
         async _updateStats() {
-            this.label.set_text('Loading...');
+            this.label.set_text('...');
             this.totalItem.label.set_text('Today Total: Loading...');
             this.projectItem.label.set_text('Top Project: Loading...');
             this.languageItem.label.set_text('Top Language: Loading...');
@@ -86,10 +91,10 @@ const WakaPanelButton = GObject.registerClass(
             baseUrl = (baseUrl || 'https://wakatime.com').replace(/\/+$/g, '');
 
             if (!apiKey) {
-                this.label.set_text('API Key Missing!');
+                this.label.set_text('⚠');
                 this.totalItem.label.set_text('Today Total: Please set API Key in preferences.');
-                this.projectItem.label.set_text('Top Project: N/A');
-                this.languageItem.label.set_text('Top Language: N/A');
+                this.projectItem.label.set_text('Top Project: —');
+                this.languageItem.label.set_text('Top Language: —');
                 this._scheduleNextUpdate();
                 return;
             }
@@ -108,10 +113,10 @@ const WakaPanelButton = GObject.registerClass(
                 );
 
                 if (message.status_code !== Soup.Status.OK) {
-                    this.label.set_text('API Error!');
-                    this.totalItem.label.set_text(`API Error: ${message.status_code}`);
+                    this.label.set_text('⚠');
+                    this.totalItem.label.set_text(`Today Total: API Error (${message.status_code})`);
                     this.projectItem.label.set_text('Top Project: Check API Key / URL');
-                    this.languageItem.label.set_text('Top Language: N/A');
+                    this.languageItem.label.set_text('Top Language: —');
                     this._scheduleNextUpdate();
                     return;
                 }
@@ -123,8 +128,8 @@ const WakaPanelButton = GObject.registerClass(
                 if (!data?.data?.[0]?.grand_total?.text || data.data[0].grand_total.text === '0 secs') {
                     this.label.set_text('0m');
                     this.totalItem.label.set_text('Today Total: No coding yet');
-                    this.projectItem.label.set_text('Top Project: No coding yet');
-                    this.languageItem.label.set_text('Top Language: No coding yet');
+                    this.projectItem.label.set_text('Top Project: —');
+                    this.languageItem.label.set_text('Top Language: —');
                     this._scheduleNextUpdate();
                     return;
                 }
@@ -139,15 +144,15 @@ const WakaPanelButton = GObject.registerClass(
 
                 this.label.set_text(formattedGrandTotal);
                 this.totalItem.label.set_text(`Today Total: ${grandTotalRaw}`);
-                this.projectItem.label.set_text(`Top Project: ${topProject?.name || 'N/A'} ${formattedProjectTime ? `(${formattedProjectTime})` : ''}`);
-                this.languageItem.label.set_text(`Top Language: ${topLanguage?.name || 'N/A'} ${formattedLanguageTime ? `(${formattedLanguageTime})` : ''}`);
+                this.projectItem.label.set_text(`Top Project: ${topProject?.name || '—'} ${formattedProjectTime ? `· ${formattedProjectTime}` : ''}`);
+                this.languageItem.label.set_text(`Top Language: ${topLanguage?.name || '—'} ${formattedLanguageTime ? `· ${formattedLanguageTime}` : ''}`);
 
             } catch (e) {
                 console.error('Failed to fetch/parse WakaTime data:', e);
-                this.label.set_text('Error!');
+                this.label.set_text('⚠');
                 this.totalItem.label.set_text('Today Total: Network Error');
-                this.projectItem.label.set_text('Top Project: N/A');
-                this.languageItem.label.set_text('Top Language: N/A');
+                this.projectItem.label.set_text('Top Project: Check connection');
+                this.languageItem.label.set_text('Top Language: —');
             } finally {
                 this._scheduleNextUpdate();
             }

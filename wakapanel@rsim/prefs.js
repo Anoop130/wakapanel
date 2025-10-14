@@ -6,91 +6,80 @@ import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/ex
 
 export default class WakaPanelPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
-        // Get the GSettings object for our schema
         const settings = this.getSettings();
 
-        // Create a PreferencesPage
-        const page = new Adw.PreferencesPage();
+        // preferences page
+        const page = new Adw.PreferencesPage({
+            title: 'General',
+            icon_name: 'preferences-system-symbolic',
+        });
         window.add(page);
 
-        // API Key Group
+        // API key group
         const apiKeyGroup = new Adw.PreferencesGroup({
             title: 'WakaTime API Key',
             description: 'Your personal WakaTime API key.',
         });
         page.add(apiKeyGroup);
 
-        // API Key Entry Row
-        const apiKeyRow = new Adw.ActionRow({
+        // API key entry row
+        const apiKeyRow = new Adw.PasswordEntryRow({
             title: 'API Key',
         });
         apiKeyGroup.add(apiKeyRow);
 
-        const apiKeyEntry = new Gtk.Entry({
-            hexpand: true,
-            valign: Gtk.Align.CENTER,
-        });
-        apiKeyRow.add_suffix(apiKeyEntry);
-        apiKeyRow.activatable_widget = apiKeyEntry;
-
-        // Bind the API key entry to GSettings key
+        // bind API key entry to GSettings key
         settings.bind(
             'api-key',
-            apiKeyEntry,
+            apiKeyRow,
             'text',
             Gio.SettingsBindFlags.DEFAULT
         );
 
-        // Link to WakaTime API key settings page
+        // link to WakaTime API key settings page
         const apiKeyLinkRow = new Adw.ActionRow({
             title: 'Where to find your API key?',
+            subtitle: 'Get your API key from WakaTime settings',
         });
         apiKeyGroup.add(apiKeyLinkRow);
 
         const linkButton = new Gtk.LinkButton({
             uri: 'https://wakatime.com/settings/api-key',
-            label: 'wakatime.com/settings/api-key',
-            hexpand: true,
+            label: 'Open WakaTime Settings',
             halign: Gtk.Align.END,
             valign: Gtk.Align.CENTER,
         });
         apiKeyLinkRow.add_suffix(linkButton);
 
-        //  Base URL Group 
+        // base URL group
         const baseUrlGroup = new Adw.PreferencesGroup({
-            title: 'WakaTime Base URL',
-            description: 'The base URL for the WakaTime API. Useful for self-hosted Wakapi instances.',
+            title: 'Base URL',
+            description: 'For self-hosted Wakapi instances. Leave default for WakaTime.',
         });
         page.add(baseUrlGroup);
 
-        const baseUrlRow = new Adw.ActionRow({
+        const baseUrlRow = new Adw.EntryRow({
             title: 'Base URL',
         });
         baseUrlGroup.add(baseUrlRow);
 
-        const baseUrlEntry = new Gtk.Entry({
-            hexpand: true,
-            valign: Gtk.Align.CENTER,
-        });
-        baseUrlRow.add_suffix(baseUrlEntry);
-        baseUrlRow.activatable_widget = baseUrlEntry;
-
         settings.bind(
             'base-url',
-            baseUrlEntry,
+            baseUrlRow,
             'text',
             Gio.SettingsBindFlags.DEFAULT
         );
 
-        //  Refresh Interval Group 
+        // refresh interval group
         const refreshGroup = new Adw.PreferencesGroup({
-            title: 'Refresh Interval',
+            title: 'Refresh Settings',
+            description: 'How often to update your coding stats.',
         });
         page.add(refreshGroup);
 
         const refreshRow = new Adw.ActionRow({
-            title: 'Refresh interval',
-            subtitle: 'Time in minutes between WakaTime API calls.',
+            title: 'Refresh Interval',
+            subtitle: 'Minutes between API calls',
         });
         refreshGroup.add(refreshRow);
 
@@ -103,7 +92,6 @@ export default class WakaPanelPreferences extends ExtensionPreferences {
             }),
             numeric: true,
             valign: Gtk.Align.CENTER,
-            width_chars: 4,
         });
         refreshSpinButton.set_value(settings.get_int('refresh-interval'));
         refreshRow.add_suffix(refreshSpinButton);
