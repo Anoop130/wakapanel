@@ -1,2 +1,57 @@
+# Archive of packaged extension (generated)
 wakapanel@rsim.shell-extension.zip
+
+# Editor/project folders
+.vscode/
 vscode/*
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+.Trash-*
+.Spotlight-V100
+
+# Swap / backup files
+*~
+*.swp
+*.swo
+*.bak
+*.orig
+
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Node / package manager
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build / distribution / coverage
+dist/
+build/
+coverage/
+*.egg-info/
+
+# Logs
+*.log
+
+# GNOME extension artifacts / generated schemas
+gschemas.compiled
+**/gschemas.compiled
+*.gschema.xml
+
+# Archives and packaged outputs
+*.zip
+
+# IDE / tooling files
+*.iml
+
+# Misc
+*.tmp
