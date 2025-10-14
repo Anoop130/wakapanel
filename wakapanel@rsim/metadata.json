@@ -2,6 +2,8 @@
     "uuid": "wakapanel@rsim",
     "name": "WakaPanel",
     "description": "A simple panel for WakaTime stats",
+    "version": 1,
     "shell-version": ["45", "46", "47"],
-    "settings-schema": "org.gnome.shell.extensions.wakapanel"
+    "settings-schema": "org.gnome.shell.extensions.wakapanel",
+    "url": "https://github.com/Anoop130/wakapanel"
 }
