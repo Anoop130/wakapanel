@@ -1,0 +1,7 @@
+{
+    "uuid": "wakapanel@rsim",
+    "name": "WakaPanel",
+    "description": "A simple panel for WakaTime stats",
+    "shell-version": ["45", "46", "47"],
+    "settings-schema": "org.gnome.shell.extensions.wakapanel"
+}

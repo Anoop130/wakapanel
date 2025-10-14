@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.wakapanel" path="/org/gnome/shell/extensions/wakapanel/">
+    <key name="api-key" type="s">
+      <default>''</default>
+      <summary>WakaTime API Key</summary>
+      <description>Your personal WakaTime API key. Find it at wakatime.com/settings/api-key</description>
+    </key>
+    <key name="base-url" type="s">
+        <default>'https://wakatime.com/'</default>
+        <summary>Base URL for WakaTime API</summary>
+        <description>The base URL for the WakaTime API. Useful for self-hosted Wakapi instances.</description>
+    </key>
+    <key name="refresh-interval" type="i">
+      <default>10</default>
+      <summary>Refresh Interval (minutes)</summary>
+      <description>Time interval in minutes to refresh WakaTime stats.</description>
+    </key>
+  </schema>
+</schemalist>
