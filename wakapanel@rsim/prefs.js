@@ -1,25 +1,19 @@
-// prefs.js
-// Imports necessary Gtk and Adw components
-const { Adw, Gtk, GObject, Gio } = imports.gi;
-const ExtensionUtils = imports.misc.extensionUtils;
+import Adw from 'gi://Adw';
+import Gtk from 'gi://Gtk';
+import Gio from 'gi://Gio';
 
-// Get your extension's UUID from metadata.json
-const Me = ExtensionUtils.getCurrentExtension();
+import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-// Our preferences class, which builds the UI
-class WakaPanelPreferences extends GObject.Object {
-    _init(params = {}) {
-        super._init(params);
-        // Get the GSettings object for our schema
-        this._settings = ExtensionUtils.getSettings(Me.metadata['settings-schema']);
-    }
-
+export default class WakaPanelPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
+        // Get the GSettings object for our schema
+        const settings = this.getSettings();
+
         // Create a PreferencesPage
         const page = new Adw.PreferencesPage();
         window.add(page);
 
-        // --- API Key Group ---
+        // API Key Group
         const apiKeyGroup = new Adw.PreferencesGroup({
             title: 'WakaTime API Key',
             description: 'Your personal WakaTime API key.',
@@ -33,21 +27,17 @@ class WakaPanelPreferences extends GObject.Object {
         apiKeyGroup.add(apiKeyRow);
 
         const apiKeyEntry = new Gtk.Entry({
-            hexpand: true, // Expand horizontally
-            // In a real production extension, you might consider Adw.PasswordEntry
-            // or Gtk.Entry.visibility for security, but for dev, plain is fine.
+            hexpand: true,
+            valign: Gtk.Align.CENTER,
         });
         apiKeyRow.add_suffix(apiKeyEntry);
-        apiKeyRow.activatable_widget = apiKeyEntry; // Make clicking row activate the entry
+        apiKeyRow.activatable_widget = apiKeyEntry;
 
-        // Bind the API key entry to our GSettings key
-        // The GSettings key is 'apiKey' (camelCase from your gschema.xml)
-        // The widget property is 'text'
-        // The binding flags ensure two-way synchronization
-        this._settings.bind(
-            'api-key', // GSettings key name
-            apiKeyEntry, // Widget to bind to
-            'text',      // Widget property to bind
+        // Bind the API key entry to GSettings key
+        settings.bind(
+            'api-key',
+            apiKeyEntry,
+            'text',
             Gio.SettingsBindFlags.DEFAULT
         );
 
@@ -61,12 +51,12 @@ class WakaPanelPreferences extends GObject.Object {
             uri: 'https://wakatime.com/settings/api-key',
             label: 'wakatime.com/settings/api-key',
             hexpand: true,
-            xalign: 0.0, // Align text to the start
+            halign: Gtk.Align.END,
+            valign: Gtk.Align.CENTER,
         });
         apiKeyLinkRow.add_suffix(linkButton);
 
-
-        // --- Base URL Group ---
+        //  Base URL Group 
         const baseUrlGroup = new Adw.PreferencesGroup({
             title: 'WakaTime Base URL',
             description: 'The base URL for the WakaTime API. Useful for self-hosted Wakapi instances.',
@@ -80,19 +70,19 @@ class WakaPanelPreferences extends GObject.Object {
 
         const baseUrlEntry = new Gtk.Entry({
             hexpand: true,
+            valign: Gtk.Align.CENTER,
         });
         baseUrlRow.add_suffix(baseUrlEntry);
         baseUrlRow.activatable_widget = baseUrlEntry;
 
-        this._settings.bind(
-            'base-url', // GSettings key name
+        settings.bind(
+            'base-url',
             baseUrlEntry,
             'text',
             Gio.SettingsBindFlags.DEFAULT
         );
 
-
-        // --- Refresh Interval Group ---
+        //  Refresh Interval Group 
         const refreshGroup = new Adw.PreferencesGroup({
             title: 'Refresh Interval',
         });
@@ -106,28 +96,24 @@ class WakaPanelPreferences extends GObject.Object {
 
         const refreshSpinButton = new Gtk.SpinButton({
             adjustment: new Gtk.Adjustment({
-                lower: 1,     // Minimum 1 minute
-                upper: 60,    // Maximum 60 minutes (or more if you prefer)
+                lower: 1,
+                upper: 60,
                 step_increment: 1,
                 page_increment: 5,
             }),
             numeric: true,
-            value: this._settings.get_int('refresh-interval'), // Set initial value from settings
-            width_chars: 4, // Make it wide enough for a few digits
+            valign: Gtk.Align.CENTER,
+            width_chars: 4,
         });
+        refreshSpinButton.set_value(settings.get_int('refresh-interval'));
         refreshRow.add_suffix(refreshSpinButton);
         refreshRow.activatable_widget = refreshSpinButton;
 
-        this._settings.bind(
-            'refresh-interval', // GSettings key name
+        settings.bind(
+            'refresh-interval',
             refreshSpinButton,
-            'value', // SpinButton's value property
+            'value',
             Gio.SettingsBindFlags.DEFAULT
         );
     }
-}
-
-// Export the preferences class for GNOME Shell
-function init() {
-    return new WakaPanelPreferences();
 }
