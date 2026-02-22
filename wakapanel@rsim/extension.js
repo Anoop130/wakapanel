@@ -70,9 +70,11 @@ const WakaPanelButton = GObject.registerClass(
 
             // main stats
             this.totalItem = new PopupMenu.PopupImageMenuItem('Total: --', 'alarm-symbolic');
+            this.totalItem.add_style_class_name('wakapanel-stat-item');
             this.menu.addMenuItem(this.totalItem);
 
             this.streakItem = new PopupMenu.PopupImageMenuItem('Streak: --', 'weather-clear-symbolic');
+            this.streakItem.add_style_class_name('wakapanel-stat-item');
             this.menu.addMenuItem(this.streakItem);
 
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
@@ -159,14 +161,14 @@ const WakaPanelButton = GObject.registerClass(
 
             if (!apiKey) return;
 
-            // WakaTime: GET /api/v1/users/current  → { data: { ...user fields, streak: {...} } }
-            // Wakapi:   same endpoint, streak may be under data.streak or data.current_streak_length
-            const bytes = await this._httpFetch(`${baseUrl}/api/v1/users/current`);
+            // Streak lives in the stats endpoint, not /users/current.
+            // /api/v1/users/current/stats/last_7_days → data.streak.longest / data.streak.current
+            // Wakapi uses the same endpoint structure.
+            const bytes = await this._httpFetch(`${baseUrl}/api/v1/users/current/stats/last_7_days`);
             if (!bytes) return;
 
             try {
                 const json = JSON.parse(new TextDecoder('utf-8').decode(bytes.get_data()));
-                // Store the data payload so _updateStats can fish out the right field
                 this._streakData = json?.data ?? null;
             } catch (e) {
                 console.error('Failed to parse streak response:', e);
@@ -360,15 +362,16 @@ const WakaPanelButton = GObject.registerClass(
 
                 this.totalItem.label.set_text(`Total (${rangeLabel}): ${totalText}`);
 
-                // Streak — WakaTime returns current_streak_length on data directly
-                if (this._streakData) {
+                // Streak — from /stats endpoint: data.streak.current (days) or data.streak.longest
+                if (this._streakData?.streak) {
                     const streak =
-                        this._streakData.current_streak_length ??
-                        this._streakData.streak?.current_streak_days ??
-                        this._streakData.streak?.length ?? 0;
+                        this._streakData.streak.current ??
+                        this._streakData.streak.current_streak_days ?? 0;
                     this.streakItem.label.set_text(
                         streak > 0 ? `🔥 Streak: ${streak} days` : 'Streak: —'
                     );
+                } else {
+                    this.streakItem.label.set_text('Streak: —');
                 }
 
                 // Charts — use merged data across all days
