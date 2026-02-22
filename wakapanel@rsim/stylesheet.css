@@ -16,6 +16,28 @@
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
 }
 
+/* ── Branded popup header ── */
+.wakapanel-header-item {
+    padding: 10px 14px 8px 14px;
+}
+
+.wakapanel-header-box {
+    spacing: 9px;
+}
+
+.wakapanel-header-label {
+    font-size: 1.05em;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.92);
+    letter-spacing: 0.02em;
+}
+
+.wakapanel-header-sub {
+    font-size: 0.75em;
+    color: rgba(100, 180, 255, 0.75);
+    font-style: italic;
+}
+
 /* ── Range toggle bar ── */
 .wakapanel-range-container {
     padding: 8px 12px 4px 12px;
@@ -72,12 +94,12 @@
 }
 
 .wakapanel-chart-title {
-    font-size: 0.9em;
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.55);
-    letter-spacing: 0.04em;
+    font-size: 0.95em;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.85);
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
     padding: 0px 2px;
 }
 

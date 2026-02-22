@@ -26,7 +26,7 @@ const WakaPanelButton = GObject.registerClass(
 
             // icon for the panel
             let icon = new St.Icon({
-                icon_name: 'emblem-documents-symbolic',
+                icon_name: 'utilities-system-monitor-symbolic',
                 style_class: 'system-status-icon',
             });
             this.add_child(icon);
@@ -46,7 +46,31 @@ const WakaPanelButton = GObject.registerClass(
         }
 
         _buildMenu() {
-            // time range toggle at top
+            // ── Branded header ──
+            const headerItem = new PopupMenu.PopupBaseMenuItem({ reactive: false, style_class: 'wakapanel-header-item' });
+            const headerBox = new St.BoxLayout({ vertical: false, x_expand: true, y_align: Clutter.ActorAlign.CENTER, style_class: 'wakapanel-header-box' });
+
+            const headerLabel = new St.Label({
+                text: 'WakaPanel',
+                style_class: 'wakapanel-header-label',
+                y_align: Clutter.ActorAlign.CENTER,
+                x_expand: true,
+            });
+
+            const headerSub = new St.Label({
+                text: 'coding stats',
+                style_class: 'wakapanel-header-sub',
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+
+            headerBox.add_child(headerLabel);
+            headerBox.add_child(headerSub);
+            headerItem.add_child(headerBox);
+            this.menu.addMenuItem(headerItem);
+
+            this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+            // time range toggle
             this.rangeItem = new PopupMenu.PopupBaseMenuItem({ reactive: false, style_class: 'wakapanel-range-container' });
             const rangeBox = new St.BoxLayout({ vertical: false, x_expand: true, style_class: 'wakapanel-range-box' });
 
@@ -69,14 +93,9 @@ const WakaPanelButton = GObject.registerClass(
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
             // main stats
-            this.totalItem = new PopupMenu.PopupImageMenuItem('Total: --', 'alarm-symbolic');
+            this.totalItem = new PopupMenu.PopupMenuItem('Total: --');
             this.totalItem.add_style_class_name('wakapanel-stat-item');
             this.menu.addMenuItem(this.totalItem);
-
-            this.streakItem = new PopupMenu.PopupImageMenuItem('Streak: --', 'weather-clear-symbolic');
-            this.streakItem.add_style_class_name('wakapanel-stat-item');
-            this.menu.addMenuItem(this.streakItem);
-
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
             // languages chart container
@@ -85,6 +104,7 @@ const WakaPanelButton = GObject.registerClass(
             this.languagesChartItem.add_child(this.languagesChartBox);
             if (this._settings.get_boolean('show-languages-chart')) {
                 this.menu.addMenuItem(this.languagesChartItem);
+                this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             }
 
             // projects chart container
@@ -93,6 +113,7 @@ const WakaPanelButton = GObject.registerClass(
             this.projectsChartItem.add_child(this.projectsChartBox);
             if (this._settings.get_boolean('show-projects-chart')) {
                 this.menu.addMenuItem(this.projectsChartItem);
+                this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             }
 
             // editors chart container
@@ -101,6 +122,7 @@ const WakaPanelButton = GObject.registerClass(
             this.editorsChartItem.add_child(this.editorsChartBox);
             if (this._settings.get_boolean('show-editors-chart')) {
                 this.menu.addMenuItem(this.editorsChartItem);
+                this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             }
 
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
@@ -161,10 +183,9 @@ const WakaPanelButton = GObject.registerClass(
 
             if (!apiKey) return;
 
-            // Streak lives in the stats endpoint, not /users/current.
-            // /api/v1/users/current/stats/last_7_days → data.streak.longest / data.streak.current
-            // Wakapi uses the same endpoint structure.
-            const bytes = await this._httpFetch(`${baseUrl}/api/v1/users/current/stats/last_7_days`);
+            // all_time stats gives the true lifetime current streak, not bounded to a window
+            // Response: { data: { streak: { current: N, longest: N } } }
+            const bytes = await this._httpFetch(`${baseUrl}/api/v1/users/current/stats/all_time`);
             if (!bytes) return;
 
             try {
@@ -211,14 +232,14 @@ const WakaPanelButton = GObject.registerClass(
                 return;
             }
 
-            const maxTime   = items[0].total_seconds || 1;
             const totalTime = items.reduce((sum, item) => sum + (item.total_seconds || 0), 0);
             const displayCount = Math.min(5, items.length);
 
             for (let i = 0; i < displayCount; i++) {
                 const item        = items[i];
                 const percentage  = ((item.total_seconds / totalTime) * 100).toFixed(1);
-                const barFilledPx = Math.max(2, Math.round((item.total_seconds / maxTime) * BAR_MAX_PX));
+                // Scale bar relative to totalTime so the bar width visually matches the % shown
+                const barFilledPx = Math.max(2, Math.round((item.total_seconds / totalTime) * BAR_MAX_PX));
 
                 // Outer row
                 const itemBox = new St.BoxLayout({
@@ -286,7 +307,6 @@ const WakaPanelButton = GObject.registerClass(
         async _updateStats() {
             this.label.set_text('...');
             this.totalItem.label.set_text('Total: Loading...');
-            this.streakItem.label.set_text('Streak: —');
 
             const apiKey = this._settings.get_string('api-key');
             let baseUrl = this._settings.get_string('base-url');
@@ -296,7 +316,6 @@ const WakaPanelButton = GObject.registerClass(
             if (!apiKey) {
                 this.label.set_text('⚠');
                 this.totalItem.label.set_text('Total: Please set API Key in preferences.');
-                this.streakItem.label.set_text('Streak: —');
                 this._scheduleNextUpdate();
                 return;
             }
@@ -348,7 +367,6 @@ const WakaPanelButton = GObject.registerClass(
                 if (totalSecs === 0) {
                     this.label.set_text('0m');
                     this.totalItem.label.set_text('Total: No coding yet');
-                    this.streakItem.label.set_text('Streak: —');
                     this._scheduleNextUpdate();
                     return;
                 }
@@ -356,40 +374,25 @@ const WakaPanelButton = GObject.registerClass(
                 const totalText = this._secondsToText(totalSecs);
                 this.label.set_text(this._formatDuration(totalText));
 
-                let rangeLabel = 'Today';
-                if (this._currentRange === 'last_7_days')  rangeLabel = 'Last 7 Days';
-                if (this._currentRange === 'last_30_days') rangeLabel = 'Last 30 Days';
+                this.totalItem.label.set_text(`Total: ${totalText}`);
 
-                this.totalItem.label.set_text(`Total (${rangeLabel}): ${totalText}`);
-
-                // Streak — from /stats endpoint: data.streak.current (days) or data.streak.longest
-                if (this._streakData?.streak) {
-                    const streak =
-                        this._streakData.streak.current ??
-                        this._streakData.streak.current_streak_days ?? 0;
-                    this.streakItem.label.set_text(
-                        streak > 0 ? `🔥 Streak: ${streak} days` : 'Streak: —'
-                    );
-                } else {
-                    this.streakItem.label.set_text('Streak: —');
-                }
 
                 // Charts — use merged data across all days
                 if (this._settings.get_boolean('show-languages-chart')) {
-                    this._buildChart(this.languagesChartBox, '📊 Languages', mergeItems('languages'), null, false, false);
+                    this._buildChart(this.languagesChartBox, 'Languages', mergeItems('languages'), null, false, false);
+                    // 📊 📁 ✏️ 
                 }
                 if (this._settings.get_boolean('show-projects-chart')) {
-                    this._buildChart(this.projectsChartBox, '📁 Projects', mergeItems('projects'), null, false, true);
+                    this._buildChart(this.projectsChartBox, 'Projects', mergeItems('projects'), null, false, true);
                 }
                 if (this._settings.get_boolean('show-editors-chart')) {
-                    this._buildChart(this.editorsChartBox, '✏️ Editors', mergeItems('editors'), null, false, false);
+                    this._buildChart(this.editorsChartBox, 'Editors', mergeItems('editors'), null, false, false);
                 }
 
             } catch (e) {
                 console.error('Failed to fetch/parse WakaTime data:', e);
                 this.label.set_text('⚠');
                 this.totalItem.label.set_text('Total: Network Error');
-                this.streakItem.label.set_text('Streak: —');
             } finally {
                 this._scheduleNextUpdate();
             }
