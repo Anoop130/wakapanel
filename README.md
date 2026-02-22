@@ -98,7 +98,7 @@ Once configured, WakaPanel will:
 
 ## Requirements
 
-- GNOME Shell 45, 46, or 47
+- GNOME Shell 45, 46, 47, or 48
 - WakaTime account and API key
 - Active WakaTime integration in your code editor (see [wakatime.com/integrations](https://wakatime.com/integrations))
 
@@ -163,9 +163,9 @@ journalctl -f -o cat /usr/bin/gnome-shell | grep -i waka
 - Make sure you've enabled the extension: `gnome-extensions enable wakapanel@rsim`
 - Check logs: `journalctl -f -o cat /usr/bin/gnome-shell`
 
-### "API Key Missing" error
+### "API Key Missing" error or "Network Error"
 
-- Open preferences and ensure your API key is entered
+- Open preferences and ensure your API key is entered correctly
 - Verify your API key at [wakatime.com/settings/api-key](https://wakatime.com/settings/api-key)
 
 ### Settings not saving
