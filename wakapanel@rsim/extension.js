@@ -39,6 +39,9 @@ const WakaPanelButton = GObject.registerClass(
             });
             this.add_child(this.label);
 
+            // Constrain the popup menu box width
+            this.menu.box.style_class = 'wakapanel-menu-box';
+
             this._buildMenu();
         }
 
@@ -46,15 +49,15 @@ const WakaPanelButton = GObject.registerClass(
             // time range toggle at top
             this.rangeItem = new PopupMenu.PopupBaseMenuItem({ reactive: false, style_class: 'wakapanel-range-container' });
             const rangeBox = new St.BoxLayout({ vertical: false, x_expand: true, style_class: 'wakapanel-range-box' });
-            
-            this.todayBtn = new St.Button({ label: 'Today', style_class: 'wakapanel-range-button' });
-            this.week7Btn = new St.Button({ label: '7 Days', style_class: 'wakapanel-range-button' });
-            this.days30Btn = new St.Button({ label: '30 Days', style_class: 'wakapanel-range-button' });
-            
-            this.todayBtn.connect('clicked', () => this._switchRange('today'));
-            this.week7Btn.connect('clicked', () => this._switchRange('last_7_days'));
+
+            this.todayBtn  = new St.Button({ label: 'Today',   style_class: 'wakapanel-range-button', x_expand: true });
+            this.week7Btn  = new St.Button({ label: '7 Days',  style_class: 'wakapanel-range-button', x_expand: true });
+            this.days30Btn = new St.Button({ label: '30 Days', style_class: 'wakapanel-range-button', x_expand: true });
+
+            this.todayBtn.connect('clicked',  () => this._switchRange('today'));
+            this.week7Btn.connect('clicked',  () => this._switchRange('last_7_days'));
             this.days30Btn.connect('clicked', () => this._switchRange('last_30_days'));
-            
+
             rangeBox.add_child(this.todayBtn);
             rangeBox.add_child(this.week7Btn);
             rangeBox.add_child(this.days30Btn);
@@ -66,10 +69,10 @@ const WakaPanelButton = GObject.registerClass(
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
             // main stats
-            this.totalItem = new PopupMenu.PopupImageMenuItem('Total: --', 'appointment-soon-symbolic');
+            this.totalItem = new PopupMenu.PopupImageMenuItem('Total: --', 'alarm-symbolic');
             this.menu.addMenuItem(this.totalItem);
 
-            this.streakItem = new PopupMenu.PopupImageMenuItem('Streak: --', 'starred-symbolic');
+            this.streakItem = new PopupMenu.PopupImageMenuItem('Streak: --', 'weather-clear-symbolic');
             this.menu.addMenuItem(this.streakItem);
 
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
@@ -182,64 +185,92 @@ const WakaPanelButton = GObject.registerClass(
             }
         }
 
-        _buildChart(container, title, items, iconName) {
+        /**
+         * Builds a chart section inside `container`.
+         *
+         * Bars use pixel widths (not % widths) because Clutter/St does not honour
+         * percentage widths on children the way a browser does. We fix the bar column
+         * at BAR_MAX_PX pixels wide and scale each bar relative to the top item.
+         */
+        _buildChart(container, title, items, _iconName, _unused, _unused2) {
+            // Fixed pixel width of the bar track — must match CSS min-width on .wakapanel-bar-container
+            const BAR_MAX_PX = 120;
+
             container.destroy_all_children();
 
             const titleLabel = new St.Label({
                 text: title,
-                style_class: 'wakapanel-chart-title'
+                style_class: 'wakapanel-chart-title',
             });
             container.add_child(titleLabel);
 
             if (!items || items.length === 0) {
                 const emptyLabel = new St.Label({
                     text: 'No data available',
-                    style_class: 'wakapanel-chart-empty'
+                    style_class: 'wakapanel-chart-empty',
                 });
                 container.add_child(emptyLabel);
                 return;
             }
 
-            const maxTime = items[0].total_seconds || 1;
+            const maxTime   = items[0].total_seconds || 1;
+            const totalTime = items.reduce((sum, item) => sum + (item.total_seconds || 0), 0);
             const displayCount = Math.min(5, items.length);
 
             for (let i = 0; i < displayCount; i++) {
-                const item = items[i];
+                const item       = items[i];
+                const percentage = ((item.total_seconds / totalTime) * 100).toFixed(1);
+                // Pixel width for the filled portion — minimum 2px so it's always visible
+                const barFilledPx = Math.max(2, Math.round((item.total_seconds / maxTime) * BAR_MAX_PX));
+
+                // Outer row
                 const itemBox = new St.BoxLayout({
                     vertical: false,
                     x_expand: true,
-                    style_class: 'wakapanel-chart-item'
+                    style_class: 'wakapanel-chart-item',
                 });
 
+                // Name column — truncate long names with ellipsis via CSS max-width
                 const nameLabel = new St.Label({
                     text: item.name,
                     style_class: 'wakapanel-chart-name',
-                    x_expand: false
+                    x_expand: false,
                 });
+                nameLabel.clutter_text.ellipsize = 3; // PANGO_ELLIPSIZE_END
 
-                const barContainer = new St.Widget({
-                    style_class: 'wakapanel-bar-container',
-                    x_expand: true
-                });
-
-                const percentage = (item.total_seconds / maxTime) * 100;
-                const bar = new St.Widget({
-                    style_class: 'wakapanel-bar',
-                    style: `width: ${percentage}%;`
-                });
-
-                barContainer.add_child(bar);
-
+                // Time column
                 const timeLabel = new St.Label({
                     text: this._formatDuration(item.text),
                     style_class: 'wakapanel-chart-time',
-                    x_expand: false
+                    x_expand: false,
+                });
+
+                // Bar track (fixed pixel width)
+                const barContainer = new St.Widget({
+                    style_class: 'wakapanel-bar-container',
+                    x_expand: false,
+                    // exact pixel width so the filled bar can be sized in px too
+                    style: `min-width: ${BAR_MAX_PX}px; max-width: ${BAR_MAX_PX}px;`,
+                });
+
+                // Filled portion — pixel width, per-index colour
+                const bar = new St.Widget({
+                    style_class: `wakapanel-bar wakapanel-bar-${i}`,
+                    style: `width: ${barFilledPx}px;`,
+                });
+                barContainer.add_child(bar);
+
+                // Percent column
+                const percentLabel = new St.Label({
+                    text: `${percentage}%`,
+                    style_class: 'wakapanel-chart-percent',
+                    x_expand: false,
                 });
 
                 itemBox.add_child(nameLabel);
-                itemBox.add_child(barContainer);
                 itemBox.add_child(timeLabel);
-
+                itemBox.add_child(barContainer);
+                itemBox.add_child(percentLabel);
                 container.add_child(itemBox);
             }
         }
@@ -265,8 +296,8 @@ const WakaPanelButton = GObject.registerClass(
             const url = `${baseUrl}/api/v1/users/current/summaries?range=${this._currentRange}`;
 
             try {
-                // fetch streak data in parallel
-                this._fetchStreakData();
+                // await streak so data is ready before we render it
+                await this._fetchStreakData();
 
                 const message = Soup.Message.new('GET', url);
                 const authString = GLib.base64_encode(new TextEncoder().encode(`${apiKey}:`));
@@ -301,11 +332,11 @@ const WakaPanelButton = GObject.registerClass(
                 const formattedGrandTotal = this._formatDuration(grandTotalRaw);
 
                 this.label.set_text(formattedGrandTotal);
-                
+
                 let rangeLabel = 'Today';
-                if (this._currentRange === 'last_7_days') rangeLabel = 'Last 7 Days';
+                if (this._currentRange === 'last_7_days')  rangeLabel = 'Last 7 Days';
                 if (this._currentRange === 'last_30_days') rangeLabel = 'Last 30 Days';
-                
+
                 this.totalItem.label.set_text(`Total (${rangeLabel}): ${grandTotalRaw}`);
 
                 // update streak
@@ -318,15 +349,15 @@ const WakaPanelButton = GObject.registerClass(
 
                 // update charts
                 if (this._settings.get_boolean('show-languages-chart') && data.data[0].languages) {
-                    this._buildChart(this.languagesChartBox, '📊 Languages', data.data[0].languages, 'utilities-terminal-symbolic');
+                    this._buildChart(this.languagesChartBox, '📊 Languages', data.data[0].languages, null, false, false);
                 }
 
                 if (this._settings.get_boolean('show-projects-chart') && data.data[0].projects) {
-                    this._buildChart(this.projectsChartBox, '📁 Projects', data.data[0].projects, 'folder-symbolic');
+                    this._buildChart(this.projectsChartBox, '📁 Projects', data.data[0].projects, null, false, true);
                 }
 
                 if (this._settings.get_boolean('show-editors-chart') && data.data[0].editors) {
-                    this._buildChart(this.editorsChartBox, '✏️ Editors', data.data[0].editors, 'text-editor-symbolic');
+                    this._buildChart(this.editorsChartBox, '✏️ Editors', data.data[0].editors, null, false, false);
                 }
 
             } catch (e) {

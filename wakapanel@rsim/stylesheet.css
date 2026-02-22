@@ -1,94 +1,126 @@
+/* Panel label */
 .wakapanel-label {
     margin-left: 4px;
     font-weight: 500;
 }
 
-/* Range toggle buttons */
+/* ── Popup container ── */
+.wakapanel-menu-box {
+    min-width: 360px;
+    max-width: 360px;
+    padding: 4px 0px;
+    /* Solid background — overrides the translucent shell theme */
+    background-color: #1e1e2e;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* ── Range toggle bar ── */
 .wakapanel-range-container {
-    padding: 8px 12px;
+    padding: 8px 12px 4px 12px;
 }
 
 .wakapanel-range-box {
-    spacing: 6px;
+    background-color: rgba(255, 255, 255, 0.07);
+    border-radius: 8px;
+    padding: 3px;
+    spacing: 3px;
 }
 
 .wakapanel-range-button {
-    padding: 6px 16px;
-    border-radius: 8px;
-    background-color: rgba(50, 50, 50, 0.5);
-    color: rgba(255, 255, 255, 0.8);
-    font-weight: 600;
-    font-size: 12px;
-    border: 1px solid rgba(100, 100, 100, 0.3);
-    transition: all 0.2s ease;
+    border-radius: 6px;
+    padding: 4px 14px;
+    font-size: 0.85em;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.6);
+    background-color: transparent;
+    border: none;
+    transition-duration: 150ms;
 }
 
 .wakapanel-range-button:hover {
-    background-color: rgba(70, 70, 70, 0.7);
-    border-color: rgba(120, 120, 120, 0.5);
+    color: rgba(255, 255, 255, 0.9);
+    background-color: rgba(255, 255, 255, 0.08);
 }
 
 .wakapanel-range-button-active {
-    background-color: rgba(80, 120, 200, 0.9);
     color: white;
-    border-color: rgba(80, 120, 200, 1);
+    background-color: rgba(255, 255, 255, 0.18);
+    border: none;
 }
 
-.wakapanel-range-button-active:hover {
-    background-color: rgba(90, 130, 210, 1);
+/* ── Stat rows (total / streak) ── */
+.popup-menu-item .popup-menu-item-label {
+    font-size: 0.95em;
 }
 
-/* Chart styling */
+/* ── Chart section ── */
 .wakapanel-chart-box {
-    padding: 10px 12px;
-    spacing: 6px;
+    spacing: 5px;
+    padding: 2px 0px;
 }
 
 .wakapanel-chart-title {
-    font-size: 14px;
+    font-size: 0.9em;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.95);
-    margin-bottom: 8px;
+    color: rgba(255, 255, 255, 0.55);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    padding: 0px 2px;
 }
 
-.wakapanel-chart-empty {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.5);
-    font-style: italic;
-    padding: 8px 0;
-}
-
+/* Row with name + bar + percent */
 .wakapanel-chart-item {
     spacing: 8px;
-    padding: 4px 0;
 }
 
 .wakapanel-chart-name {
-    font-size: 12px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.9);
-    min-width: 100px;
-}
-
-.wakapanel-bar-container {
-    min-width: 120px;
-    height: 18px;
-    background-color: rgba(50, 50, 50, 0.5);
-    border-radius: 4px;
-    padding: 2px;
-}
-
-.wakapanel-bar {
-    height: 100%;
-    background: linear-gradient(90deg, rgba(80, 120, 200, 0.9) 0%, rgba(100, 140, 220, 0.9) 100%);
-    border-radius: 3px;
-    transition: width 0.3s ease;
+    font-size: 0.88em;
+    min-width: 80px;
+    max-width: 80px;
+    color: rgba(255, 255, 255, 0.85);
 }
 
 .wakapanel-chart-time {
-    font-size: 11px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.7);
-    min-width: 50px;
+    font-size: 0.82em;
+    color: rgba(255, 255, 255, 0.5);
+    min-width: 36px;
+}
+
+.wakapanel-chart-percent {
+    font-size: 0.82em;
+    font-family: monospace;
+    color: rgba(255, 255, 255, 0.5);
+    min-width: 52px;
     text-align: right;
 }
+
+.wakapanel-chart-empty {
+    font-size: 0.85em;
+    color: rgba(255, 255, 255, 0.35);
+    font-style: italic;
+}
+
+/* ── Progress bars ── */
+.wakapanel-bar-container {
+    height: 7px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    /* Width is controlled inline by JS (BAR_MAX_PX px) */
+}
+
+.wakapanel-bar {
+    height: 7px;
+    border-radius: 4px;
+    min-width: 2px;
+    /* Color is set by .wakapanel-bar-N below */
+}
+
+/* Per-index bar colors so languages each get a distinct hue */
+.wakapanel-bar-0 { background-color: rgba(100, 180, 255, 0.80); }
+.wakapanel-bar-1 { background-color: rgba(120, 220, 160, 0.80); }
+.wakapanel-bar-2 { background-color: rgba(255, 200,  80, 0.80); }
+.wakapanel-bar-3 { background-color: rgba(255, 130,  90, 0.80); }
+.wakapanel-bar-4 { background-color: rgba(200, 120, 255, 0.80); }
