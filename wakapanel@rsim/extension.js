@@ -21,6 +21,8 @@ const WakaPanelButton = GObject.registerClass(
             this._uuid = uuid;
             this._httpSession = new Soup.Session();
             this._timeoutSourceId = 0;
+            this._currentRange = this._settings.get_string('default-range') || 'today';
+            this._streakData = null;
 
             // icon for the panel
             let icon = new St.Icon({
@@ -37,22 +39,71 @@ const WakaPanelButton = GObject.registerClass(
             });
             this.add_child(this.label);
 
-            // menu items with icons
-            this.totalItem = new PopupMenu.PopupImageMenuItem('Today Total: --', 'appointment-soon-symbolic');
-            this.menu.addMenuItem(this.totalItem);
+            this._buildMenu();
+        }
 
-            this.projectItem = new PopupMenu.PopupImageMenuItem('Top Project: --', 'folder-symbolic');
-            this.menu.addMenuItem(this.projectItem);
+        _buildMenu() {
+            // time range toggle at top
+            this.rangeItem = new PopupMenu.PopupBaseMenuItem({ reactive: false, style_class: 'wakapanel-range-container' });
+            const rangeBox = new St.BoxLayout({ vertical: false, x_expand: true, style_class: 'wakapanel-range-box' });
+            
+            this.todayBtn = new St.Button({ label: 'Today', style_class: 'wakapanel-range-button' });
+            this.week7Btn = new St.Button({ label: '7 Days', style_class: 'wakapanel-range-button' });
+            this.days30Btn = new St.Button({ label: '30 Days', style_class: 'wakapanel-range-button' });
+            
+            this.todayBtn.connect('clicked', () => this._switchRange('today'));
+            this.week7Btn.connect('clicked', () => this._switchRange('last_7_days'));
+            this.days30Btn.connect('clicked', () => this._switchRange('last_30_days'));
+            
+            rangeBox.add_child(this.todayBtn);
+            rangeBox.add_child(this.week7Btn);
+            rangeBox.add_child(this.days30Btn);
+            this.rangeItem.add_child(rangeBox);
+            this.menu.addMenuItem(this.rangeItem);
 
-            this.languageItem = new PopupMenu.PopupImageMenuItem('Top Language: --', 'utilities-terminal-symbolic');
-            this.menu.addMenuItem(this.languageItem);
+            this._updateRangeButtons();
 
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
+            // main stats
+            this.totalItem = new PopupMenu.PopupImageMenuItem('Total: --', 'appointment-soon-symbolic');
+            this.menu.addMenuItem(this.totalItem);
+
+            this.streakItem = new PopupMenu.PopupImageMenuItem('Streak: --', 'starred-symbolic');
+            this.menu.addMenuItem(this.streakItem);
+
+            this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+            // languages chart container
+            this.languagesChartItem = new PopupMenu.PopupBaseMenuItem({ reactive: false });
+            this.languagesChartBox = new St.BoxLayout({ vertical: true, style_class: 'wakapanel-chart-box' });
+            this.languagesChartItem.add_child(this.languagesChartBox);
+            if (this._settings.get_boolean('show-languages-chart')) {
+                this.menu.addMenuItem(this.languagesChartItem);
+            }
+
+            // projects chart container
+            this.projectsChartItem = new PopupMenu.PopupBaseMenuItem({ reactive: false });
+            this.projectsChartBox = new St.BoxLayout({ vertical: true, style_class: 'wakapanel-chart-box' });
+            this.projectsChartItem.add_child(this.projectsChartBox);
+            if (this._settings.get_boolean('show-projects-chart')) {
+                this.menu.addMenuItem(this.projectsChartItem);
+            }
+
+            // editors chart container
+            this.editorsChartItem = new PopupMenu.PopupBaseMenuItem({ reactive: false });
+            this.editorsChartBox = new St.BoxLayout({ vertical: true, style_class: 'wakapanel-chart-box' });
+            this.editorsChartItem.add_child(this.editorsChartBox);
+            if (this._settings.get_boolean('show-editors-chart')) {
+                this.menu.addMenuItem(this.editorsChartItem);
+            }
+
+            this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+            // dashboard button
             this.dashboardButton = new PopupMenu.PopupImageMenuItem('Open WakaTime Dashboard', 'web-browser-symbolic');
             this.menu.addMenuItem(this.dashboardButton);
 
-            // connect activate signal to open dashboard
             this.dashboardButton.connect('activate', () => {
                 const baseUrl = this._settings.get_string('base-url') || 'https://wakatime.com';
                 const dashboardUrl = `${baseUrl}/dashboard`;
@@ -66,7 +117,26 @@ const WakaPanelButton = GObject.registerClass(
             });
         }
 
-        // helper to format duration text to "xh ym"
+        _switchRange(newRange) {
+            this._currentRange = newRange;
+            this._updateRangeButtons();
+            this._updateStats();
+        }
+
+        _updateRangeButtons() {
+            this.todayBtn.remove_style_class_name('wakapanel-range-button-active');
+            this.week7Btn.remove_style_class_name('wakapanel-range-button-active');
+            this.days30Btn.remove_style_class_name('wakapanel-range-button-active');
+
+            if (this._currentRange === 'today') {
+                this.todayBtn.add_style_class_name('wakapanel-range-button-active');
+            } else if (this._currentRange === 'last_7_days') {
+                this.week7Btn.add_style_class_name('wakapanel-range-button-active');
+            } else if (this._currentRange === 'last_30_days') {
+                this.days30Btn.add_style_class_name('wakapanel-range-button-active');
+            }
+        }
+
         _formatDuration(durationText) {
             if (!durationText) {
                 return '0m';
@@ -79,27 +149,16 @@ const WakaPanelButton = GObject.registerClass(
             return formatted.trim();
         }
 
-        async _updateStats() {
-            this.label.set_text('...');
-            this.totalItem.label.set_text('Today Total: Loading...');
-            this.projectItem.label.set_text('Top Project: Loading...');
-            this.languageItem.label.set_text('Top Language: Loading...');
-
+        async _fetchStreakData() {
             const apiKey = this._settings.get_string('api-key');
             let baseUrl = this._settings.get_string('base-url');
-
             baseUrl = (baseUrl || 'https://wakatime.com').replace(/\/+$/g, '');
 
             if (!apiKey) {
-                this.label.set_text('⚠');
-                this.totalItem.label.set_text('Today Total: Please set API Key in preferences.');
-                this.projectItem.label.set_text('Top Project: —');
-                this.languageItem.label.set_text('Top Language: —');
-                this._scheduleNextUpdate();
                 return;
             }
 
-            const url = `${baseUrl}/api/v1/users/current/summaries?range=today`;
+            const url = `${baseUrl}/api/v1/users/current`;
 
             try {
                 const message = Soup.Message.new('GET', url);
@@ -112,11 +171,117 @@ const WakaPanelButton = GObject.registerClass(
                     null
                 );
 
+                if (message.status_code === Soup.Status.OK) {
+                    const decoder = new TextDecoder('utf-8');
+                    const jsonString = decoder.decode(bytes.get_data());
+                    const data = JSON.parse(jsonString);
+                    this._streakData = data.data;
+                }
+            } catch (e) {
+                console.error('Failed to fetch streak data:', e);
+            }
+        }
+
+        _buildChart(container, title, items, iconName) {
+            container.destroy_all_children();
+
+            const titleLabel = new St.Label({
+                text: title,
+                style_class: 'wakapanel-chart-title'
+            });
+            container.add_child(titleLabel);
+
+            if (!items || items.length === 0) {
+                const emptyLabel = new St.Label({
+                    text: 'No data available',
+                    style_class: 'wakapanel-chart-empty'
+                });
+                container.add_child(emptyLabel);
+                return;
+            }
+
+            const maxTime = items[0].total_seconds || 1;
+            const displayCount = Math.min(5, items.length);
+
+            for (let i = 0; i < displayCount; i++) {
+                const item = items[i];
+                const itemBox = new St.BoxLayout({
+                    vertical: false,
+                    x_expand: true,
+                    style_class: 'wakapanel-chart-item'
+                });
+
+                const nameLabel = new St.Label({
+                    text: item.name,
+                    style_class: 'wakapanel-chart-name',
+                    x_expand: false
+                });
+
+                const barContainer = new St.Widget({
+                    style_class: 'wakapanel-bar-container',
+                    x_expand: true
+                });
+
+                const percentage = (item.total_seconds / maxTime) * 100;
+                const bar = new St.Widget({
+                    style_class: 'wakapanel-bar',
+                    style: `width: ${percentage}%;`
+                });
+
+                barContainer.add_child(bar);
+
+                const timeLabel = new St.Label({
+                    text: this._formatDuration(item.text),
+                    style_class: 'wakapanel-chart-time',
+                    x_expand: false
+                });
+
+                itemBox.add_child(nameLabel);
+                itemBox.add_child(barContainer);
+                itemBox.add_child(timeLabel);
+
+                container.add_child(itemBox);
+            }
+        }
+
+        async _updateStats() {
+            this.label.set_text('...');
+            this.totalItem.label.set_text('Total: Loading...');
+            this.streakItem.label.set_text('Streak: Loading...');
+
+            const apiKey = this._settings.get_string('api-key');
+            let baseUrl = this._settings.get_string('base-url');
+
+            baseUrl = (baseUrl || 'https://wakatime.com').replace(/\/+$/g, '');
+
+            if (!apiKey) {
+                this.label.set_text('⚠');
+                this.totalItem.label.set_text('Total: Please set API Key in preferences.');
+                this.streakItem.label.set_text('Streak: —');
+                this._scheduleNextUpdate();
+                return;
+            }
+
+            const url = `${baseUrl}/api/v1/users/current/summaries?range=${this._currentRange}`;
+
+            try {
+                // fetch streak data in parallel
+                this._fetchStreakData();
+
+                const message = Soup.Message.new('GET', url);
+                const authString = GLib.base64_encode(new TextEncoder().encode(`${apiKey}:`));
+                message.request_headers.append('Authorization', `Basic ${authString}`);
+
+                const bytes = await this._httpSession.send_and_read_async(
+                    message,
+                    GLib.PRIORITY_DEFAULT,
+                    null
+                );
+
                 if (message.status_code !== Soup.Status.OK) {
                     this.label.set_text('⚠');
-                    this.totalItem.label.set_text(`Today Total: API Error (${message.status_code})`);
-                    this.projectItem.label.set_text('Top Project: Check API Key / URL');
-                    this.languageItem.label.set_text('Top Language: —');
+                    this.totalItem.label.set_text(`Total: API Error (${message.status_code})`);
+                    this.streakItem.label.set_text('Streak: —');
                     this._scheduleNextUpdate();
                     return;
                 }
@@ -127,32 +292,48 @@ const WakaPanelButton = GObject.registerClass(
 
                 if (!data?.data?.[0]?.grand_total?.text || data.data[0].grand_total.text === '0 secs') {
                     this.label.set_text('0m');
-                    this.totalItem.label.set_text('Today Total: No coding yet');
-                    this.projectItem.label.set_text('Top Project: —');
-                    this.languageItem.label.set_text('Top Language: —');
+                    this.totalItem.label.set_text('Total: No coding yet');
                     this._scheduleNextUpdate();
                     return;
                 }
 
                 const grandTotalRaw = data.data[0].grand_total.text;
-                const topProject = data.data[0].projects?.[0];
-                const topLanguage = data.data[0].languages?.[0];
-
                 const formattedGrandTotal = this._formatDuration(grandTotalRaw);
-                const formattedProjectTime = topProject ? this._formatDuration(topProject.text) : '';
-                const formattedLanguageTime = topLanguage ? this._formatDuration(topLanguage.text) : '';
 
                 this.label.set_text(formattedGrandTotal);
-                this.totalItem.label.set_text(`Today Total: ${grandTotalRaw}`);
-                this.projectItem.label.set_text(`Top Project: ${topProject?.name || '—'} ${formattedProjectTime ? `· ${formattedProjectTime}` : ''}`);
-                this.languageItem.label.set_text(`Top Language: ${topLanguage?.name || '—'} ${formattedLanguageTime ? `· ${formattedLanguageTime}` : ''}`);
+                
+                let rangeLabel = 'Today';
+                if (this._currentRange === 'last_7_days') rangeLabel = 'Last 7 Days';
+                if (this._currentRange === 'last_30_days') rangeLabel = 'Last 30 Days';
+                
+                this.totalItem.label.set_text(`Total (${rangeLabel}): ${grandTotalRaw}`);
+
+                // update streak
+                if (this._streakData && this._streakData.streak) {
+                    const streak = this._streakData.streak.current_streak_days || 0;
+                    this.streakItem.label.set_text(`🔥 Streak: ${streak} days`);
+                } else {
+                    this.streakItem.label.set_text('Streak: —');
+                }
+
+                // update charts
+                if (this._settings.get_boolean('show-languages-chart') && data.data[0].languages) {
+                    this._buildChart(this.languagesChartBox, '📊 Languages', data.data[0].languages, 'utilities-terminal-symbolic');
+                }
+
+                if (this._settings.get_boolean('show-projects-chart') && data.data[0].projects) {
+                    this._buildChart(this.projectsChartBox, '📁 Projects', data.data[0].projects, 'folder-symbolic');
+                }
+
+                if (this._settings.get_boolean('show-editors-chart') && data.data[0].editors) {
+                    this._buildChart(this.editorsChartBox, '✏️ Editors', data.data[0].editors, 'text-editor-symbolic');
+                }
 
             } catch (e) {
                 console.error('Failed to fetch/parse WakaTime data:', e);
                 this.label.set_text('⚠');
-                this.totalItem.label.set_text('Today Total: Network Error');
-                this.projectItem.label.set_text('Top Project: Check connection');
-                this.languageItem.label.set_text('Top Language: —');
+                this.totalItem.label.set_text('Total: Network Error');
+                this.streakItem.label.set_text('Streak: —');
             } finally {
                 this._scheduleNextUpdate();
             }
