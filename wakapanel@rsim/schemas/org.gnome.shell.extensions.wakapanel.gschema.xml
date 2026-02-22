@@ -16,5 +16,25 @@
       <summary>Refresh Interval (minutes)</summary>
       <description>Time interval in minutes to refresh WakaTime stats.</description>
     </key>
+    <key name="show-languages-chart" type="b">
+      <default>true</default>
+      <summary>Show Languages Chart</summary>
+      <description>Display programming languages breakdown in dropdown</description>
+    </key>
+    <key name="show-projects-chart" type="b">
+      <default>true</default>
+      <summary>Show Projects Chart</summary>
+      <description>Display projects breakdown in dropdown</description>
+    </key>
+    <key name="show-editors-chart" type="b">
+      <default>false</default>
+      <summary>Show Editors Chart</summary>
+      <description>Display editors breakdown in dropdown</description>
+    </key>
+    <key name="default-range" type="s">
+      <default>'today'</default>
+      <summary>Default Time Range</summary>
+      <description>Default time range to display (today, last_7_days, last_30_days)</description>
+    </key>
   </schema>
 </schemalist>

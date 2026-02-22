@@ -1,4 +1,144 @@
+/* Panel label */
 .wakapanel-label {
     margin-left: 4px;
     font-weight: 500;
 }
+
+/* ── Popup container ── */
+.wakapanel-menu-box {
+    min-width: 360px;
+    max-width: 360px;
+    padding: 4px 0px;
+    /* Solid background — overrides the translucent shell theme */
+    background-color: #1e1e2e;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* ── Branded popup header ── */
+.wakapanel-header-item {
+    padding: 10px 14px 8px 14px;
+}
+
+.wakapanel-header-box {
+    spacing: 9px;
+}
+
+.wakapanel-header-label {
+    font-size: 1.05em;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.92);
+    letter-spacing: 0.02em;
+}
+
+.wakapanel-header-sub {
+    font-size: 0.75em;
+    color: rgba(100, 180, 255, 0.75);
+    font-style: italic;
+}
+
+/* ── Range toggle bar ── */
+.wakapanel-range-container {
+    padding: 8px 12px 4px 12px;
+}
+
+.wakapanel-range-box {
+    background-color: rgba(255, 255, 255, 0.07);
+    border-radius: 8px;
+    padding: 3px;
+    spacing: 3px;
+}
+
+.wakapanel-range-button {
+    border-radius: 6px;
+    padding: 4px 14px;
+    font-size: 0.85em;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.6);
+    background-color: transparent;
+    border: none;
+    transition-duration: 150ms;
+}
+
+.wakapanel-range-button:hover {
+    color: rgba(255, 255, 255, 0.9);
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.wakapanel-range-button-active {
+    color: white;
+    background-color: rgba(255, 255, 255, 0.18);
+    border: none;
+}
+
+/* ── Stat rows (total / streak) ── */
+.popup-menu-item .popup-menu-item-label {
+    font-size: 0.95em;
+}
+
+/* Kill the persistent hover/active glow that GNOME applies to PopupImageMenuItems */
+.wakapanel-stat-item {
+    background-color: transparent;
+}
+.wakapanel-stat-item:active,
+.wakapanel-stat-item:focus,
+.wakapanel-stat-item:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Chart section ── */
+.wakapanel-chart-box {
+    spacing: 5px;
+    padding: 2px 0px;
+}
+
+.wakapanel-chart-title {
+    font-size: 0.95em;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.85);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    padding: 0px 2px;
+}
+
+/* Row with name + bar + percent */
+.wakapanel-chart-item {
+    spacing: 8px;
+}
+
+.wakapanel-chart-name {
+    font-size: 0.88em;
+    min-width: 80px;
+    max-width: 80px;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.wakapanel-chart-time {
+    font-size: 0.82em;
+    color: rgba(255, 255, 255, 0.5);
+    min-width: 52px;   /* wide enough for "2h 14m" without truncating */
+}
+
+.wakapanel-chart-percent {
+    font-size: 0.82em;
+    font-family: monospace;
+    color: rgba(255, 255, 255, 0.5);
+    min-width: 52px;
+    text-align: right;
+}
+
+.wakapanel-chart-empty {
+    font-size: 0.85em;
+    color: rgba(255, 255, 255, 0.35);
+    font-style: italic;
+}
+
+/* ── Progress bars ── */
+/* Track and bar dimensions are set inline by JS; only colour classes live here */
+.wakapanel-bar-0 { background-color: rgba(100, 180, 255, 0.90); }
+.wakapanel-bar-1 { background-color: rgba(100, 220, 140, 0.90); }
+.wakapanel-bar-2 { background-color: rgba(255, 200,  70, 0.90); }
+.wakapanel-bar-3 { background-color: rgba(255, 120,  90, 0.90); }
+.wakapanel-bar-4 { background-color: rgba(190, 110, 255, 0.90); }

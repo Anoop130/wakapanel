@@ -103,5 +103,77 @@ export default class WakaPanelPreferences extends ExtensionPreferences {
             'value',
             Gio.SettingsBindFlags.DEFAULT
         );
+
+        // display options group
+        const displayGroup = new Adw.PreferencesGroup({
+            title: 'Display Options',
+            description: 'Choose what to show in the dropdown menu.',
+        });
+        page.add(displayGroup);
+
+        // show languages chart
+        const showLanguagesRow = new Adw.SwitchRow({
+            title: 'Show Languages Chart',
+            subtitle: 'Display programming languages breakdown',
+        });
+        settings.bind('show-languages-chart', showLanguagesRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        displayGroup.add(showLanguagesRow);
+
+        // show projects chart
+        const showProjectsRow = new Adw.SwitchRow({
+            title: 'Show Projects Chart',
+            subtitle: 'Display projects breakdown',
+        });
+        settings.bind('show-projects-chart', showProjectsRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        displayGroup.add(showProjectsRow);
+
+        // show editors chart
+        const showEditorsRow = new Adw.SwitchRow({
+            title: 'Show Editors Chart',
+            subtitle: 'Display editors breakdown',
+        });
+        settings.bind('show-editors-chart', showEditorsRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        displayGroup.add(showEditorsRow);
+
+        // default time range group
+        const rangeGroup = new Adw.PreferencesGroup({
+            title: 'Default Time Range',
+            description: 'Default time range when extension loads.',
+        });
+        page.add(rangeGroup);
+
+        const rangeRow = new Adw.ComboRow({
+            title: 'Default Range',
+            subtitle: 'Can be changed in dropdown',
+        });
+        const rangeModel = new Gtk.StringList();
+        rangeModel.append('Today');
+        rangeModel.append('Last 7 Days');
+        rangeModel.append('Last 30 Days');
+        rangeRow.set_model(rangeModel);
+
+        // set initial value
+        const currentRange = settings.get_string('default-range');
+        if (currentRange === 'last_7_days') {
+            rangeRow.set_selected(1);
+        } else if (currentRange === 'last_30_days') {
+            rangeRow.set_selected(2);
+        } else {
+            rangeRow.set_selected(0);
+        }
+
+        // connect signal to save changes
+        rangeRow.connect('notify::selected', () => {
+            const selected = rangeRow.get_selected();
+            if (selected === 1) {
+                settings.set_string('default-range', 'last_7_days');
+            } else if (selected === 2) {
+                settings.set_string('default-range', 'last_30_days');
+            } else {
+                settings.set_string('default-range', 'today');
+            }
+        });
+
+        rangeGroup.add(rangeRow);
     }
 }
