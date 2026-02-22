@@ -104,23 +104,9 @@
 }
 
 /* ── Progress bars ── */
-.wakapanel-bar-container {
-    height: 7px;
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-    /* Width is controlled inline by JS (BAR_MAX_PX px) */
-}
-
-.wakapanel-bar {
-    height: 7px;
-    border-radius: 4px;
-    min-width: 2px;
-    /* Color is set by .wakapanel-bar-N below */
-}
-
-/* Per-index bar colors so languages each get a distinct hue */
-.wakapanel-bar-0 { background-color: rgba(100, 180, 255, 0.80); }
-.wakapanel-bar-1 { background-color: rgba(120, 220, 160, 0.80); }
-.wakapanel-bar-2 { background-color: rgba(255, 200,  80, 0.80); }
-.wakapanel-bar-3 { background-color: rgba(255, 130,  90, 0.80); }
-.wakapanel-bar-4 { background-color: rgba(200, 120, 255, 0.80); }
+/* Track and bar dimensions are set inline by JS; only colour classes live here */
+.wakapanel-bar-0 { background-color: rgba(100, 180, 255, 0.90); }
+.wakapanel-bar-1 { background-color: rgba(100, 220, 140, 0.90); }
+.wakapanel-bar-2 { background-color: rgba(255, 200,  70, 0.90); }
+.wakapanel-bar-3 { background-color: rgba(255, 120,  90, 0.90); }
+.wakapanel-bar-4 { background-color: rgba(190, 110, 255, 0.90); }

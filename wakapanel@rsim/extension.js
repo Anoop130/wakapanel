@@ -157,44 +157,40 @@ const WakaPanelButton = GObject.registerClass(
             let baseUrl = this._settings.get_string('base-url');
             baseUrl = (baseUrl || 'https://wakatime.com').replace(/\/+$/g, '');
 
-            if (!apiKey) {
-                return;
-            }
+            if (!apiKey) return;
 
-            const url = `${baseUrl}/api/v1/users/current`;
+            // WakaTime: GET /api/v1/users/current  → { data: { ...user fields, streak: {...} } }
+            // Wakapi:   same endpoint, streak may be under data.streak or data.current_streak_length
+            const bytes = await this._httpFetch(`${baseUrl}/api/v1/users/current`);
+            if (!bytes) return;
 
             try {
-                const message = Soup.Message.new('GET', url);
-                const authString = GLib.base64_encode(new TextEncoder().encode(`${apiKey}:`));
-                message.request_headers.append('Authorization', `Basic ${authString}`);
-
-                const bytes = await this._httpSession.send_and_read_async(
-                    message,
-                    GLib.PRIORITY_DEFAULT,
-                    null
-                );
-
-                if (message.status_code === Soup.Status.OK) {
-                    const decoder = new TextDecoder('utf-8');
-                    const jsonString = decoder.decode(bytes.get_data());
-                    const data = JSON.parse(jsonString);
-                    this._streakData = data.data;
-                }
+                const json = JSON.parse(new TextDecoder('utf-8').decode(bytes.get_data()));
+                // Store the data payload so _updateStats can fish out the right field
+                this._streakData = json?.data ?? null;
             } catch (e) {
-                console.error('Failed to fetch streak data:', e);
+                console.error('Failed to parse streak response:', e);
             }
         }
 
         /**
          * Builds a chart section inside `container`.
          *
-         * Bars use pixel widths (not % widths) because Clutter/St does not honour
-         * percentage widths on children the way a browser does. We fix the bar column
-         * at BAR_MAX_PX pixels wide and scale each bar relative to the top item.
+         * Bar rendering notes for GNOME Shell / Clutter:
+         *   - St.Widget uses ClutterFixedLayout: children don't auto-position, they
+         *     all overlap at (0,0). Using it as a bar track means the filled bar
+         *     renders on top of the track background but may not align properly.
+         *   - St.BoxLayout uses ClutterBoxLayout: children are placed sequentially.
+         *     We use a horizontal BoxLayout as the track with the filled bar as the
+         *     first (and only) child — it naturally anchors to the left edge.
+         *   - Both track and bar have fixed pixel heights set via inline style so
+         *     Clutter doesn't collapse them to zero.
+         *   - Track width is fixed at BAR_MAX_PX via inline style; bar width is
+         *     proportional in pixels (ratio × BAR_MAX_PX), minimum 2px.
          */
         _buildChart(container, title, items, _iconName, _unused, _unused2) {
-            // Fixed pixel width of the bar track — must match CSS min-width on .wakapanel-bar-container
-            const BAR_MAX_PX = 120;
+            const BAR_MAX_PX = 130; // px width of the full bar track
+            const BAR_H_PX  = 7;   // px height — must match .wakapanel-bar height
 
             container.destroy_all_children();
 
@@ -218,9 +214,8 @@ const WakaPanelButton = GObject.registerClass(
             const displayCount = Math.min(5, items.length);
 
             for (let i = 0; i < displayCount; i++) {
-                const item       = items[i];
-                const percentage = ((item.total_seconds / totalTime) * 100).toFixed(1);
-                // Pixel width for the filled portion — minimum 2px so it's always visible
+                const item        = items[i];
+                const percentage  = ((item.total_seconds / totalTime) * 100).toFixed(1);
                 const barFilledPx = Math.max(2, Math.round((item.total_seconds / maxTime) * BAR_MAX_PX));
 
                 // Outer row
@@ -230,7 +225,7 @@ const WakaPanelButton = GObject.registerClass(
                     style_class: 'wakapanel-chart-item',
                 });
 
-                // Name column — truncate long names with ellipsis via CSS max-width
+                // Name column — ellipsize long names
                 const nameLabel = new St.Label({
                     text: item.name,
                     style_class: 'wakapanel-chart-name',
@@ -245,20 +240,31 @@ const WakaPanelButton = GObject.registerClass(
                     x_expand: false,
                 });
 
-                // Bar track (fixed pixel width)
-                const barContainer = new St.Widget({
-                    style_class: 'wakapanel-bar-container',
+                // Track: horizontal BoxLayout so the filled child anchors left
+                // Fixed pixel size via inline style — no CSS width/height needed
+                const barTrack = new St.BoxLayout({
+                    vertical: false,
                     x_expand: false,
-                    // exact pixel width so the filled bar can be sized in px too
-                    style: `min-width: ${BAR_MAX_PX}px; max-width: ${BAR_MAX_PX}px;`,
+                    y_align: Clutter.ActorAlign.CENTER,
+                    style: `
+                        width: ${BAR_MAX_PX}px;
+                        height: ${BAR_H_PX}px;
+                        background-color: rgba(255,255,255,0.10);
+                        border-radius: 4px;
+                    `,
                 });
 
-                // Filled portion — pixel width, per-index colour
+                // Filled bar: fixed pixel width, colour from CSS class
                 const bar = new St.Widget({
-                    style_class: `wakapanel-bar wakapanel-bar-${i}`,
-                    style: `width: ${barFilledPx}px;`,
+                    x_expand: false,
+                    y_expand: true,
+                    style_class: `wakapanel-bar-${i}`,
+                    style: `
+                        width: ${barFilledPx}px;
+                        border-radius: 4px;
+                    `,
                 });
-                barContainer.add_child(bar);
+                barTrack.add_child(bar);
 
                 // Percent column
                 const percentLabel = new St.Label({
@@ -269,7 +275,7 @@ const WakaPanelButton = GObject.registerClass(
 
                 itemBox.add_child(nameLabel);
                 itemBox.add_child(timeLabel);
-                itemBox.add_child(barContainer);
+                itemBox.add_child(barTrack);
                 itemBox.add_child(percentLabel);
                 container.add_child(itemBox);
             }
@@ -278,7 +284,7 @@ const WakaPanelButton = GObject.registerClass(
         async _updateStats() {
             this.label.set_text('...');
             this.totalItem.label.set_text('Total: Loading...');
-            this.streakItem.label.set_text('Streak: Loading...');
+            this.streakItem.label.set_text('Streak: —');
 
             const apiKey = this._settings.get_string('api-key');
             let baseUrl = this._settings.get_string('base-url');
@@ -293,71 +299,87 @@ const WakaPanelButton = GObject.registerClass(
                 return;
             }
 
-            const url = `${baseUrl}/api/v1/users/current/summaries?range=${this._currentRange}`;
+            const summaryUrl = `${baseUrl}/api/v1/users/current/summaries?range=${this._currentRange}`;
 
             try {
-                // await streak so data is ready before we render it
-                await this._fetchStreakData();
+                // Fetch summary and streak in parallel — neither blocks the other
+                const [summaryBytes] = await Promise.all([
+                    this._httpFetch(summaryUrl),
+                    this._fetchStreakData(),   // updates this._streakData as a side-effect
+                ]);
 
-                const message = Soup.Message.new('GET', url);
-                const authString = GLib.base64_encode(new TextEncoder().encode(`${apiKey}:`));
-                message.request_headers.append('Authorization', `Basic ${authString}`);
+                if (!summaryBytes) {
+                    this.label.set_text('⚠');
+                    this.totalItem.label.set_text('Total: Network Error');
+                    this._scheduleNextUpdate();
+                    return;
+                }
 
-                const bytes = await this._httpSession.send_and_read_async(
-                    message,
-                    GLib.PRIORITY_DEFAULT,
-                    null
+                const decoder   = new TextDecoder('utf-8');
+                const data      = JSON.parse(decoder.decode(summaryBytes.get_data()));
+
+                // For multi-day ranges the API returns one entry per day in data.data[].
+                // Aggregate grand_total across all days so "30 Days" reflects the full period.
+                const allDays = data?.data ?? [];
+                const totalSecs = allDays.reduce(
+                    (sum, day) => sum + (day?.grand_total?.total_seconds ?? 0), 0
                 );
 
-                if (message.status_code !== Soup.Status.OK) {
-                    this.label.set_text('⚠');
-                    this.totalItem.label.set_text(`Total: API Error (${message.status_code})`);
+                // Merge language/project/editor arrays across all days
+                const mergeItems = (key) => {
+                    const map = new Map();
+                    for (const day of allDays) {
+                        for (const item of (day[key] ?? [])) {
+                            const prev = map.get(item.name) ?? { ...item, total_seconds: 0 };
+                            prev.total_seconds += item.total_seconds ?? 0;
+                            map.set(item.name, prev);
+                        }
+                    }
+                    // Re-generate .text for the merged totals
+                    const sorted = [...map.values()].sort((a, b) => b.total_seconds - a.total_seconds);
+                    for (const item of sorted) {
+                        item.text = this._secondsToText(item.total_seconds);
+                    }
+                    return sorted;
+                };
+
+                if (totalSecs === 0) {
+                    this.label.set_text('0m');
+                    this.totalItem.label.set_text('Total: No coding yet');
                     this.streakItem.label.set_text('Streak: —');
                     this._scheduleNextUpdate();
                     return;
                 }
 
-                const decoder = new TextDecoder('utf-8');
-                const jsonString = decoder.decode(bytes.get_data());
-                const data = JSON.parse(jsonString);
-
-                if (!data?.data?.[0]?.grand_total?.text || data.data[0].grand_total.text === '0 secs') {
-                    this.label.set_text('0m');
-                    this.totalItem.label.set_text('Total: No coding yet');
-                    this._scheduleNextUpdate();
-                    return;
-                }
-
-                const grandTotalRaw = data.data[0].grand_total.text;
-                const formattedGrandTotal = this._formatDuration(grandTotalRaw);
-
-                this.label.set_text(formattedGrandTotal);
+                const totalText = this._secondsToText(totalSecs);
+                this.label.set_text(this._formatDuration(totalText));
 
                 let rangeLabel = 'Today';
                 if (this._currentRange === 'last_7_days')  rangeLabel = 'Last 7 Days';
                 if (this._currentRange === 'last_30_days') rangeLabel = 'Last 30 Days';
 
-                this.totalItem.label.set_text(`Total (${rangeLabel}): ${grandTotalRaw}`);
+                this.totalItem.label.set_text(`Total (${rangeLabel}): ${totalText}`);
 
-                // update streak
-                if (this._streakData && this._streakData.streak) {
-                    const streak = this._streakData.streak.current_streak_days || 0;
-                    this.streakItem.label.set_text(`🔥 Streak: ${streak} days`);
-                } else {
-                    this.streakItem.label.set_text('Streak: —');
+                // Streak — WakaTime returns current_streak_length on data directly
+                if (this._streakData) {
+                    const streak =
+                        this._streakData.current_streak_length ??
+                        this._streakData.streak?.current_streak_days ??
+                        this._streakData.streak?.length ?? 0;
+                    this.streakItem.label.set_text(
+                        streak > 0 ? `🔥 Streak: ${streak} days` : 'Streak: —'
+                    );
                 }
 
-                // update charts
-                if (this._settings.get_boolean('show-languages-chart') && data.data[0].languages) {
-                    this._buildChart(this.languagesChartBox, '📊 Languages', data.data[0].languages, null, false, false);
+                // Charts — use merged data across all days
+                if (this._settings.get_boolean('show-languages-chart')) {
+                    this._buildChart(this.languagesChartBox, '📊 Languages', mergeItems('languages'), null, false, false);
                 }
-
-                if (this._settings.get_boolean('show-projects-chart') && data.data[0].projects) {
-                    this._buildChart(this.projectsChartBox, '📁 Projects', data.data[0].projects, null, false, true);
+                if (this._settings.get_boolean('show-projects-chart')) {
+                    this._buildChart(this.projectsChartBox, '📁 Projects', mergeItems('projects'), null, false, true);
                 }
-
-                if (this._settings.get_boolean('show-editors-chart') && data.data[0].editors) {
-                    this._buildChart(this.editorsChartBox, '✏️ Editors', data.data[0].editors, null, false, false);
+                if (this._settings.get_boolean('show-editors-chart')) {
+                    this._buildChart(this.editorsChartBox, '✏️ Editors', mergeItems('editors'), null, false, false);
                 }
 
             } catch (e) {
@@ -368,6 +390,34 @@ const WakaPanelButton = GObject.registerClass(
             } finally {
                 this._scheduleNextUpdate();
             }
+        }
+
+        // Simple HTTP GET helper — returns the raw GLib.Bytes or null on error
+        async _httpFetch(url) {
+            try {
+                const apiKey = this._settings.get_string('api-key');
+                const message = Soup.Message.new('GET', url);
+                const authString = GLib.base64_encode(new TextEncoder().encode(`${apiKey}:`));
+                message.request_headers.append('Authorization', `Basic ${authString}`);
+                const bytes = await this._httpSession.send_and_read_async(
+                    message, GLib.PRIORITY_DEFAULT, null
+                );
+                return message.status_code === Soup.Status.OK ? bytes : null;
+            } catch (e) {
+                console.error('HTTP fetch failed:', url, e);
+                return null;
+            }
+        }
+
+        // Convert raw seconds to a human-readable string (e.g. "2 hrs 14 mins")
+        _secondsToText(totalSeconds) {
+            const h = Math.floor(totalSeconds / 3600);
+            const m = Math.floor((totalSeconds % 3600) / 60);
+            const s = totalSeconds % 60;
+            if (h > 0 && m > 0) return `${h} hr${h !== 1 ? 's' : ''} ${m} min${m !== 1 ? 's' : ''}`;
+            if (h > 0)          return `${h} hr${h !== 1 ? 's' : ''}`;
+            if (m > 0)          return `${m} min${m !== 1 ? 's' : ''}`;
+            return `${s} sec${s !== 1 ? 's' : ''}`;
         }
 
         _scheduleNextUpdate() {
